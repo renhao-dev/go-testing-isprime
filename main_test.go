@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Test_isPrime(t *testing.T) {
@@ -79,8 +81,8 @@ func Test_checkNumbers(t *testing.T) {
 		expectedIfDone bool
 	}{
 		{"prime", "7", "7 is prime", false},
-
 		{"not prime", "6", "6 is divisable by 2", false},
+		{"negative", "-11", "Negative numbers are not prime by def", false},
 		{"quit", "q", "", true},
 		{"not number", "balalalaika.7", "Please, enter a valid number", false},
 		{"prime", "7", "7 is prime", false},
@@ -100,4 +102,36 @@ func Test_checkNumbers(t *testing.T) {
 		}
 	}
 
+}
+
+func Test_checkUserInput(t *testing.T) {
+	r, w, _ := os.Pipe()
+
+	oldOut := os.Stdout
+	os.Stdout = w
+
+	doneChan := make(chan bool)
+
+	var in bytes.Buffer
+	in.Write([]byte("7\nq\n"))
+
+	timer := time.NewTimer(time.Millisecond * 100)
+	go checkUserInput(&in, doneChan)
+
+	select {
+	case <-doneChan:
+	case <-timer.C:
+		t.Error("Failed to finish")
+	}
+	close(doneChan)
+
+	_ = w.Close()
+
+	output, _ := io.ReadAll(r)
+
+	if !strings.Contains(string(output), "Enter your number -> ") {
+		t.Error("Incorrect ouput")
+	}
+
+	os.Stdout = oldOut
 }
